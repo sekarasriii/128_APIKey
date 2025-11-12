@@ -78,3 +78,58 @@ app.post('/create', async (req, res) => {
     if (connection) connection.release()
   }
 })
+
+// Endpoint untuk check validasi API key
+app.post('/checkapi', async (req, res) => {
+  let connection;
+  try {
+    const { apiKey } = req.body
+    
+    if (!apiKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'API Key tidak boleh kosong',
+        valid: false
+      })
+    }
+    
+    // Cek di database
+    connection = await pool.getConnection()
+    const [rows] = await connection.query(
+      'SELECT * FROM api_keys WHERE api_key = ? AND is_active = TRUE',
+      [apiKey]
+    )
+    
+    if (rows.length > 0) {
+      const keyData = rows[0]
+      return res.json({
+        success: true,
+        valid: true,
+        message: 'API Key valid',
+        data: {
+          id: keyData.id,
+          apiKey: keyData.api_key,
+          createdAt: keyData.created_at,
+          status: keyData.is_active ? 'active' : 'inactive'
+        }
+      })
+    } else {
+      return res.status(401).json({
+        success: false,
+        valid: false,
+        message: 'API Key tidak valid atau tidak aktif'
+      })
+    }
+    
+  } catch (error) {
+    console.error('❌ Error saat check API key:', error)
+    res.status(500).json({
+      success: false,
+      valid: false,
+      error: 'Terjadi kesalahan server',
+      message: error.message
+    })
+  } finally {
+    if (connection) connection.release()
+  }
+})
